@@ -1,17 +1,63 @@
 import express, { Express, Request, Response } from "express";
-import { PORT } from "./config.js";
+import { PORT, mongoDBURL } from "./config.js";
+import mongoose from "mongoose";
+import { Book } from "./models/bookModel.js";
+import { title } from "process";
 
 const app: Express = express();
 
-app.listen(PORT, () => {
-    console.log(`start listening on port ${PORT}`);
-});
+// Middleware to parse JSON bodies
+app.use(express.json());
 
 app.get("/", (req: Request, res: Response) => {
     res.send("Hellow World!!!!!!");
 });
 
-app.get("/hi", (req: Request, res: Response) => {
-    res.send("HIIIIIIIIIIIIIIII");
+app.post("/books", async (req: Request, res: Response) => {
+    try {
+        if (!req.body.title || !req.body.author || !req.body.publishYear) {
+            return res.status(400).send({
+                message: "Send all required fields: title, author, publishYear"
+            });
+        }
+        
+        const newBook = {
+            title: req.body.title,
+            author: req.body.author,
+            publishYear: req.body.publishYear
+        };
+        const book = await Book.create(newBook);
+        return res.status(201).send(book);
+
+    } catch (err) {
+        console.log(err.message);
+        res.status(500).send({message: err.message});
+    }
 });
 
+app.get("/books", async (req: Request, res: Response) => {
+    try {
+        const books = await Book.find({});
+
+        return res.status(200).json({
+            count: books.length,
+            data: books
+        });
+    } catch(err) {
+        console.log(err.message);
+        res.status(500).send({message: err.message});
+    }
+});
+
+mongoose
+    .connect(mongoDBURL)
+    .then(() => {
+        console.log("connected to database");
+        app.listen(PORT, () => {
+            console.log(`start listening on port ${PORT}`);
+        });
+    })
+    .catch((err) => {
+        console.log(err);
+        
+    });
